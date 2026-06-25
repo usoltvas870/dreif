@@ -1,0 +1,26 @@
+# OS
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build
+bin/
+obj/
+dist/
+build/
+out/
+*.exe
+*.dll
+*.pdb
+
+# Logs
+*.log
+logs/

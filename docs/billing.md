@@ -44,7 +44,7 @@ expired (нет доступа)        active
 2. Подключить способы оплаты: банковская карта, СБП, Mir Pay
 3. Получить `shop_id` и `secret_key` → в `.env`
 4. Настроить webhook URL в личном кабинете ЮKassa:
-   `https://dreif.ru/webhook/yukassa`
+   `https://audium.ru/webhook/yukassa`
 5. Включить уведомления о событиях: `payment.succeeded`, `payment.canceled`
 
 ```env
@@ -74,10 +74,10 @@ def create_payment(user_id: str, period: str) -> dict:
         },
         "confirmation": {
             "type": "redirect",
-            "return_url": "https://dreif.ru/app/?payment=success"
+            "return_url": "https://audium.ru/app/?payment=success"
         },
         "capture": True,
-        "description": f"Дрейф — {'месяц' if period == 'month' else 'год'}",
+        "description": f"Audium — {'месяц' if period == 'month' else 'год'}",
         "metadata": {
             "user_id": user_id,
             "period": period
@@ -171,7 +171,7 @@ async def activate(db, user_id: str, yukassa_payment_id: str, period: str):
     await bot.send_message(
         user.telegram_id,
         f"✓ Подписка активирована до {new_until.strftime('%d.%m.%Y')}. "
-        f"Хорошего дрейфа."
+        f"Хороших сессий."
     )
 ```
 
@@ -182,7 +182,7 @@ async def activate(db, user_id: str, yukassa_payment_id: str, period: str):
 Запускаем через простой cron внутри Docker или `apscheduler` без Celery:
 
 ```python
-# dreif_app/core/scheduler.py
+# audium_app/core/scheduler.py
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 scheduler = AsyncIOScheduler()

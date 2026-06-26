@@ -176,8 +176,8 @@ WHERE subscription_status IN ('active', 'expired')
 После 500+ уникальных посетителей лендинга в месяц. До этого — шум перевешивает сигнал. На MVP достаточно UTM-меток в ссылках на лендинг для разбивки трафика по платформам.
 
 ```
-https://dreif.ru/?utm_source=vk&utm_medium=clips&utm_campaign=sleep_v1
-https://dreif.ru/?utm_source=instagram&utm_medium=reels&utm_campaign=focus_v2
+https://audium.ru/?utm_source=vk&utm_medium=clips&utm_campaign=sleep_v1
+https://audium.ru/?utm_source=instagram&utm_medium=reels&utm_campaign=focus_v2
 ```
 
 Сохраняем `utm_source` при регистрации → в `users.source` → считаем конверсию по источнику напрямую из БД.
@@ -191,7 +191,7 @@ https://dreif.ru/?utm_source=instagram&utm_medium=reels&utm_campaign=focus_v2
 | Brain.fm (аналог) | ~25% | ~7% | >15 |
 | Calm | ~12% (широкая аудитория) | ~5% | >20 |
 | Типичный B2C wellness SaaS | 10–20% | 5–12% | 5–15 |
-| **Дрейф — цель** | **20–30%** | **<10%** | **>10** |
+| **Audium — цель** | **20–30%** | **<10%** | **>10** |
 
 Brain.fm — ближайший аналог по механике. Достижимо при правильном онбординге.
 

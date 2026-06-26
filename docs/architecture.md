@@ -9,7 +9,7 @@
 
 ```
 dreif/
-├── dreif_app/
+├── audium_app/
 │   ├── api/
 │   │   ├── main.py           # FastAPI app, CORS, Sentry, startup
 │   │   ├── routes/
@@ -41,7 +41,7 @@ dreif/
 │   ├── sleep_01.mp3
 │   └── ...
 └── nginx/
-    └── dreif.conf
+    └── audium.conf
 ```
 
 **Принцип:** фронтенд — статика, раздаётся Nginx напрямую. API проксируется. Один `docker compose up` — всё работает.
@@ -109,7 +109,7 @@ services:
 
   api:
     build: .
-    command: uvicorn dreif_app.api.main:app --host 0.0.0.0 --port 8000 --proxy-headers
+    command: uvicorn audium_app.api.main:app --host 0.0.0.0 --port 8000 --proxy-headers
     ports: ["127.0.0.1:8000:8000"]   # наружу только через Nginx
     volumes:
       - ./audio:/app/audio:ro        # аудиофайлы (read-only)
@@ -117,7 +117,7 @@ services:
 
   bot:
     build: .
-    command: python -m dreif_app.bot.main
+    command: python -m audium_app.bot.main
     depends_on: [postgres, redis]
 ```
 
@@ -130,10 +130,10 @@ Celery добавляется в V2 если понадобятся scheduled-р
 ```nginx
 server {
     listen 443 ssl;
-    server_name dreif.ru;
+    server_name audium.ru;
 
     # Лендинг и статика
-    root /var/www/dreif;
+    root /var/www/audium;
     index index.html;
 
     # PWA — SPA fallback
@@ -162,13 +162,13 @@ server {
     }
 
     # Let's Encrypt
-    ssl_certificate /etc/letsencrypt/live/dreif.ru/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/dreif.ru/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/audium.ru/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/audium.ru/privkey.pem;
 }
 
 server {
     listen 80;
-    server_name dreif.ru;
+    server_name audium.ru;
     return 301 https://$host$request_uri;
 }
 ```
@@ -214,7 +214,7 @@ payments
 ## Авторизация — Telegram Login Widget
 
 ```
-1. Пользователь на лендинге нажимает «Начать дрейф»
+1. Пользователь на лендинге нажимает «Начать»
 2. Telegram Login Widget открывает окно авторизации
 3. После подтверждения Telegram отправляет данные на:
    POST /api/auth/telegram
@@ -295,8 +295,8 @@ def has_access(user: User) -> bool:
 ```json
 // manifest.json
 {
-  "name": "Дрейф",
-  "short_name": "Дрейф",
+  "name": "Audium",
+  "short_name": "Audium",
   "start_url": "/app/",
   "display": "standalone",
   "background_color": "#0B1623",

@@ -7,17 +7,21 @@
 ## Общая схема
 
 ```
-[Лендинг] → [Telegram Login Widget] → [FastAPI Backend]
-                                              │
-                          ┌───────────────────┼───────────────────┐
-                          │                   │                   │
-                   [PostgreSQL]        [Yandex Cloud        [ЮKassa
-                   users + subs        Object Storage]      Webhooks]
-                                       аудио + CDN
-                                              │
-                                    [Audio Player]
-                                    защищённые URL
+[Лендинг Tilda] → [Telegram Login Widget] → [FastAPI Backend на VPS]
+                                                      │
+                                       ┌──────────────┼──────────────┐
+                                       │              │              │
+                                [PostgreSQL]    [/app/audio/]   [ЮKassa
+                                users/subs/     треки лежат     Webhooks]
+                                payments        здесь же
+                                       │
+                               [Audio endpoint]
+                               GET /audio/{id}
+                               проверка подписки → FileResponse
 ```
+
+**Аудио на том же VPS** — 15–20 треков = 1–2 ГБ, VPS справляется.
+Переезд на Object Storage + CDN делается за один день когда придёт реальная нагрузка.
 
 ---
 
@@ -39,15 +43,17 @@
 
 | Слой | Технология | Обоснование |
 |------|-----------|-------------|
-| Backend | FastAPI (Python) | Быстро, async, уже знакомо по Nura |
+| Лендинг | Tilda | Быстро, не нужен разработчик, Telegram-кнопка вставляется как HTML-блок |
+| Приложение (фронт) | Jinja2 + HTMX | FastAPI сам отдаёт HTML, минимум JS, один сервис |
+| Backend | FastAPI (Python) | Async, знакомо по Nura, автодокументация |
 | База данных | PostgreSQL | Надёжно, транзакции, уже в Nura |
-| Хостинг данных | Yandex Cloud / VK Cloud / Selectel | Серверы в РФ — требование 152-ФЗ |
-| Аудио-хранилище | Yandex Cloud Object Storage | S3-совместимый, CDN поверх, в РФ |
-| CDN | Yandex Cloud CDN или Selectel CDN | Российские PoP-точки, быстро для РФ |
+| Аудио-хранилище | VPS (тот же сервер) | 15–20 треков = 1–2 ГБ, лишний сервис не нужен |
+| Аудио-раздача | FastAPI FileResponse | Проверка подписки перед отдачей файла |
 | Платежи | ЮKassa | СБП + карты Мир, вебхуки |
 | Auth | Telegram Login Widget | Решено в блоке 4 |
 | Сессия | httpOnly cookie, 90 дней | Не localStorage |
-| Деплой | Docker + VPS или Yandex Cloud serverless | На старте — VPS |
+| Деплой | Docker + VPS в РФ | Selectel / Timeweb / Reg.ru — 152-ФЗ |
+| V2: аудио при росте | Yandex Cloud Object Storage + CDN | Переезд за 1 день когда придёт нагрузка |
 
 ---
 
@@ -87,39 +93,36 @@ payments
 
 ---
 
-## Защита аудио — подписанные URL
+## Защита аудио — раздача через FastAPI
 
-Аудиофайлы **не должны быть публичными**. Схема доступа:
+Аудиофайлы лежат в `/app/audio/` — вне публичной директории. Доступ только через endpoint с проверкой подписки:
 
-```
-Пользователь открывает плеер
-    ↓
-Frontend запрашивает: GET /api/audio/url?track_id=sleep_01
-    ↓
-Backend проверяет: subscription_status == 'active' или в триале?
-    ↓
-Да → генерирует подписанный URL с TTL 1 час
-    → возвращает URL
-    ↓
-Frontend воспроизводит напрямую с CDN (не через бэкенд)
-```
-
-**Подписанный URL (Yandex Cloud Object Storage):**
 ```python
-import boto3
-from datetime import datetime, timedelta
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
+import os
 
-s3 = boto3.client('s3', endpoint_url='https://storage.yandexcloud.net', ...)
+router = APIRouter()
 
-def get_signed_audio_url(track_key: str) -> str:
-    return s3.generate_presigned_url(
-        'get_object',
-        Params={'Bucket': 'dreif-audio', 'Key': track_key},
-        ExpiresIn=3600  # 1 час
-    )
+@router.get("/audio/{track_id}")
+async def stream_audio(
+    track_id: str,
+    user: User = Depends(get_current_user)
+):
+    if not has_access(user):
+        raise HTTPException(status_code=403, detail="Subscription required")
+
+    file_path = f"/app/audio/{track_id}.mp3"
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404)
+
+    # FileResponse поддерживает HTTP Range requests — перемотка работает
+    return FileResponse(file_path, media_type="audio/mpeg")
 ```
 
-Аудио грузится напрямую с CDN — бэкенд не является посредником в стриминге. Масштабируется бесплатно.
+**HTTP Range requests** (нужны для перемотки в аудиоплеере) FastAPI поддерживает через `FileResponse` из коробки.
+
+**V2 при росте нагрузки:** файлы переезжают в Yandex Cloud Object Storage, endpoint генерирует подписанный URL вместо FileResponse. Изменение в одном месте, один день работы.
 
 ---
 

@@ -105,25 +105,27 @@ def generate_isochronic(
 TRACKS = [
     # (id, carrier, beat_hz, тип, минуты)
     # SLEEP
+    ("sleep_theta_01", 200, 6.0, "binaural",    30),
+    ("sleep_theta_02", 220, 5.0, "binaural",    60),
     ("sleep_delta_01", 220, 2.0, "binaural",    60),
-    ("sleep_delta_02", 180, 1.5, "binaural",    45),
-    ("sleep_theta_01", 200, 5.0, "binaural",    45),
-    ("sleep_theta_02", 220, 6.0, "isochronic",  30),
+    ("sleep_delta_02", 180, 1.5, "isochronic",  45),
+    ("sleep_theta_03", 200, 4.0, "isochronic",  30),
 
     # FOCUS
-    ("focus_lobeta_01", 300, 12.0, "binaural",  45),
-    ("focus_lobeta_02", 280, 10.0, "isochronic", 30),
-    ("focus_beta_01",   320, 16.0, "binaural",  45),
-    ("focus_beta_02",   300, 18.0, "isochronic", 20),
+    ("focus_beta_01",    320, 15.0, "isochronic", 20),
+    ("focus_lobeta_01",  300, 12.0, "binaural",   30),
+    ("focus_lobeta_02",  280, 10.0, "isochronic",  45),
+    ("focus_beta_02",    300, 16.0, "binaural",   45),
 
     # STRESS
-    ("stress_alpha_01", 250, 10.0, "binaural",  30),
-    ("stress_alpha_02", 220,  8.0, "isochronic", 20),
-    ("stress_alpha_03", 260, 11.0, "binaural",  15),
+    ("stress_alpha_01", 250, 10.0, "isochronic", 15),
+    ("stress_alpha_02", 220,  8.0, "binaural",   30),
+    ("stress_alpha_03", 260,  9.0, "binaural",   45),
 
     # RECOVERY
-    ("recovery_theta_01", 200, 6.0, "binaural",  45),
-    ("recovery_theta_02", 220, 5.0, "isochronic", 30),
+    ("recovery_theta_01", 200, 6.0, "isochronic", 20),
+    ("recovery_theta_02", 220, 5.0, "binaural",   45),
+    ("recovery_alpha_01", 250, 8.0, "isochronic", 20),
 ]
 
 for track_id, carrier, beat, signal_type, minutes in TRACKS:
@@ -189,36 +191,113 @@ for track_id, carrier, beat, signal_type, minutes in TRACKS:
 
 ---
 
-## Каталог треков и метаданные
+## Полный каталог треков (15 на старте)
+
+### Сон — 5 треков
+
+| ID | Название | Частота | Диапазон | Тип сигнала | Длит. | Наушники |
+|----|----------|---------|----------|-------------|-------|----------|
+| sleep_theta_01 | Засыпание | 6 Гц | Тета | Бинауральный | 30 мин | **Обязательно** |
+| sleep_theta_02 | Ночной переход | 5 Гц | Тета | Бинауральный | 60 мин | **Обязательно** |
+| sleep_delta_01 | Глубокое восстановление | 2 Гц | Дельта | Бинауральный | 60 мин | **Обязательно** |
+| sleep_delta_02 | Тихая ночь | 1.5 Гц | Дельта | Изохронный | 45 мин | Не нужны |
+| sleep_theta_03 | Медленный спуск | 4 Гц | Тета | Изохронный | 30 мин | Не нужны |
+
+### Фокус — 4 трека
+
+| ID | Название | Частота | Диапазон | Тип сигнала | Длит. | Наушники |
+|----|----------|---------|----------|-------------|-------|----------|
+| focus_beta_01 | Быстрый запуск | 15 Гц | Бета | Изохронный | 20 мин | Не нужны |
+| focus_lobeta_01 | Спокойный фокус | 12 Гц | Низкая Бета | Бинауральный | 30 мин | **Обязательно** |
+| focus_lobeta_02 | Устойчивое внимание | 10 Гц | Низкая Бета | Изохронный | 45 мин | Не нужны |
+| focus_beta_02 | Состояние потока | 16 Гц | Бета | Бинауральный | 45 мин | **Обязательно** |
+
+### Снятие стресса — 3 трека
+
+| ID | Название | Частота | Диапазон | Тип сигнала | Длит. | Наушники |
+|----|----------|---------|----------|-------------|-------|----------|
+| stress_alpha_01 | Пауза | 10 Гц | Альфа | Изохронный | 15 мин | Не нужны |
+| stress_alpha_02 | Разгрузка | 8 Гц | Альфа | Бинауральный | 30 мин | **Обязательно** |
+| stress_alpha_03 | Полный сброс | 9 Гц | Альфа | Бинауральный | 45 мин | **Обязательно** |
+
+### Восстановление — 3 трека
+
+| ID | Название | Частота | Диапазон | Тип сигнала | Длит. | Наушники |
+|----|----------|---------|----------|-------------|-------|----------|
+| recovery_theta_01 | После нагрузки | 6 Гц | Тета | Изохронный | 20 мин | Не нужны |
+| recovery_theta_02 | Мышечный отдых | 5 Гц | Тета | Бинауральный | 45 мин | **Обязательно** |
+| recovery_alpha_01 | Умственный отдых | 8 Гц | Альфа | Изохронный | 20 мин | Не нужны |
+
+**Итого:** 15 треков. 8 бинауральных (наушники обязательны) + 7 изохронных (без наушников).
+
+---
+
+## Метаданные — catalog.json
 
 ```json
 // audio/catalog.json — источник правды для плеера и протокола
 [
   {
+    "id": "sleep_theta_01",
+    "title": "Засыпание",
+    "category": "sleep",
+    "frequency_hz": 6.0,
+    "frequency_name": "Тета",
+    "duration_sec": 1800,
+    "requires_headphones": true,
+    "signal_type": "binaural",
+    "preview_sec": 90,
+    "description": "Тета-ритм 6 Гц — переход в сон. Для засыпания в первые 30 минут."
+  },
+  {
     "id": "sleep_delta_01",
     "title": "Глубокое восстановление",
     "category": "sleep",
     "frequency_hz": 2.0,
-    "frequency_name": "Delta",
+    "frequency_name": "Дельта",
     "duration_sec": 3600,
     "requires_headphones": true,
     "signal_type": "binaural",
     "preview_sec": 90,
-    "description": "Дельта-ритм 2 Гц — фаза глубокого сна. Для засыпания и ночного восстановления."
+    "description": "Дельта-ритм 2 Гц — фаза глубокого сна. Для ночного восстановления."
   },
   {
-    "id": "focus_beta_01",
+    "id": "sleep_delta_02",
+    "title": "Тихая ночь",
+    "category": "sleep",
+    "frequency_hz": 1.5,
+    "frequency_name": "Дельта",
+    "duration_sec": 2700,
+    "requires_headphones": false,
+    "signal_type": "isochronic",
+    "preview_sec": 90,
+    "description": "Дельта-ритм 1.5 Гц — изохронный, работает без наушников. 45 минут глубокого сна."
+  },
+  {
+    "id": "focus_beta_02",
     "title": "Состояние потока",
     "category": "focus",
     "frequency_hz": 16.0,
-    "frequency_name": "Beta",
+    "frequency_name": "Бета",
     "duration_sec": 2700,
     "requires_headphones": true,
     "signal_type": "binaural",
     "preview_sec": 90,
     "description": "Бета-ритм 16 Гц — глубокая концентрация. Для работы требующей полного погружения."
+  },
+  {
+    "id": "stress_alpha_01",
+    "title": "Пауза",
+    "category": "stress",
+    "frequency_hz": 10.0,
+    "frequency_name": "Альфа",
+    "duration_sec": 900,
+    "requires_headphones": false,
+    "signal_type": "isochronic",
+    "preview_sec": 90,
+    "description": "Альфа-ритм 10 Гц — быстрый сброс напряжения. Без наушников, 15 минут."
   }
-  // ... остальные треки
+  // ... остальные 10 треков по той же схеме
 ]
 ```
 

@@ -1,3 +1,16 @@
+*.mp3
+*.wav
+*.flac
+.env
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+.venv/
+venv/
+
 # OS
 Thumbs.db
 .DS_Store

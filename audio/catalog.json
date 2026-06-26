@@ -1,0 +1,19 @@
+{
+  "tracks": [
+    {"id": "sleep_01", "title": "Глубокий сон", "category": "sleep", "frequency_hz": 2, "type": "binaural", "duration_min": 45, "headphones_required": true},
+    {"id": "sleep_02", "title": "Засыпание", "category": "sleep", "frequency_hz": 5, "type": "binaural", "duration_min": 30, "headphones_required": true},
+    {"id": "sleep_03", "title": "Восстановление во сне", "category": "sleep", "frequency_hz": 4, "type": "isochronic", "duration_min": 60, "headphones_required": false},
+    {"id": "focus_01", "title": "Спокойный фокус", "category": "focus", "frequency_hz": 12, "type": "binaural", "duration_min": 45, "headphones_required": true},
+    {"id": "focus_02", "title": "Глубокая работа", "category": "focus", "frequency_hz": 16, "type": "binaural", "duration_min": 60, "headphones_required": true},
+    {"id": "focus_03", "title": "Поток", "category": "focus", "frequency_hz": 14, "type": "isochronic", "duration_min": 30, "headphones_required": false},
+    {"id": "focus_04", "title": "Концентрация", "category": "focus", "frequency_hz": 15, "type": "isochronic", "duration_min": 20, "headphones_required": false},
+    {"id": "stress_01", "title": "Снятие тревоги", "category": "stress", "frequency_hz": 10, "type": "binaural", "duration_min": 20, "headphones_required": true},
+    {"id": "stress_02", "title": "Расслабление", "category": "stress", "frequency_hz": 8, "type": "isochronic", "duration_min": 15, "headphones_required": false},
+    {"id": "stress_03", "title": "Спокойствие", "category": "stress", "frequency_hz": 9, "type": "binaural", "duration_min": 30, "headphones_required": true},
+    {"id": "stress_04", "title": "Перезагрузка", "category": "stress", "frequency_hz": 10, "type": "isochronic", "duration_min": 20, "headphones_required": false},
+    {"id": "recovery_01", "title": "Восстановление после нагрузки", "category": "recovery", "frequency_hz": 6, "type": "binaural", "duration_min": 30, "headphones_required": true},
+    {"id": "recovery_02", "title": "Медитативный отдых", "category": "recovery", "frequency_hz": 7, "type": "isochronic", "duration_min": 45, "headphones_required": false},
+    {"id": "recovery_03", "title": "Дневное восстановление", "category": "recovery", "frequency_hz": 5, "type": "binaural", "duration_min": 20, "headphones_required": true},
+    {"id": "recovery_04", "title": "Глубокое восстановление", "category": "recovery", "frequency_hz": 4, "type": "isochronic", "duration_min": 60, "headphones_required": false}
+  ]
+}

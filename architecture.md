@@ -1,183 +1,303 @@
-# Блок 5 — Техническая архитектура пейвола
+# Блок 5 — Техническая архитектура
 
-> Версия 1.0 — 26.06.2026
+> Версия 2.0 — 26.06.2026  
+> Стек выровнен по Nura: всё пишется в коде, никаких внешних платных сервисов.
+
+---
+
+## Структура репозитория
+
+```
+dreif/
+├── dreif_app/
+│   ├── api/
+│   │   ├── main.py           # FastAPI app, CORS, Sentry, startup
+│   │   ├── routes/
+│   │   │   ├── web.py        # авторизация, профиль, протокол
+│   │   │   ├── audio.py      # GET /audio/{track_id} с проверкой подписки
+│   │   │   └── payment.py    # ЮKassa создание платежа + webhook
+│   │   └── deps.py           # get_current_user, rate limiter
+│   ├── bot/
+│   │   ├── main.py           # aiogram Dispatcher + RedisStorage
+│   │   ├── handlers/         # start, auth_link, reminders, payment
+│   │   └── middlewares/      # ThrottlingMiddleware
+│   ├── core/
+│   │   ├── config.py         # pydantic-settings → .env
+│   │   ├── models.py         # SQLAlchemy 2.0 DeclarativeBase
+│   │   ├── schemas/          # Pydantic схемы на каждой границе
+│   │   ├── repositories/     # user.py, payment.py, session_log.py
+│   │   └── services/         # subscription.py, audio.py
+│   └── docker-compose.yml
+├── frontend/
+│   ├── index.html            # лендинг — vanilla HTML/CSS/JS
+│   ├── app/
+│   │   ├── index.html        # приложение (плеер, протокол, история)
+│   │   ├── app.js
+│   │   └── app.css
+│   ├── manifest.json
+│   ├── service-worker.js
+│   └── theme.css             # CSS переменные (цвета бренда)
+├── audio/                    # треки .mp3 — не публичная директория
+│   ├── sleep_01.mp3
+│   └── ...
+└── nginx/
+    └── dreif.conf
+```
+
+**Принцип:** фронтенд — статика, раздаётся Nginx напрямую. API проксируется. Один `docker compose up` — всё работает.
 
 ---
 
 ## Общая схема
 
 ```
-[Лендинг Tilda] → [Telegram Login Widget] → [FastAPI Backend на VPS]
-                                                      │
-                                       ┌──────────────┼──────────────┐
-                                       │              │              │
-                                [PostgreSQL]    [/app/audio/]   [ЮKassa
-                                users/subs/     треки лежат     Webhooks]
-                                payments        здесь же
-                                       │
-                               [Audio endpoint]
-                               GET /audio/{id}
-                               проверка подписки → FileResponse
+Браузер пользователя
+    │
+    ├─► Nginx ──► /           → frontend/index.html (лендинг)
+    │            /app/        → frontend/app/ (PWA приложение)
+    │            /api/        → FastAPI :8000
+    │            /audio/      → FastAPI :8000 (с проверкой подписки)
+    │
+    └─► Telegram Login Widget ──► POST /api/auth/telegram
+                                        │
+                              httpOnly cookie (session_id)
+                                        │
+                              ┌─────────┼──────────┐
+                         [PostgreSQL] [Redis]  [ЮKassa webhook]
 ```
 
-**Аудио на том же VPS** — 15–20 треков = 1–2 ГБ, VPS справляется.
-Переезд на Object Storage + CDN делается за один день когда придёт реальная нагрузка.
-
 ---
 
-## No-code vs кастомная разработка
+## Стек — полностью из кода, без внешних сервисов
 
-**No-code (Tilda + Memberspace и пр.) — не подходит.** Причины:
-- Западные membership-инструменты не интегрируются с ЮKassa
-- Telegram Login Widget в no-code конструктор встроить нельзя нормально
-- Защита аудио через подписанные CDN-URL требует серверной логики
-
-**Решение: полупользовательская разработка.**
-- Лендинг: статичный HTML/CSS или Tilda **только для маркетинговой части** (до кнопки «Начать»)
-- Всё после авторизации — кастомный FastAPI backend
-- Один монолитный сервис на MVP, не микросервисы
-
----
-
-## Стек технологий
-
-| Слой | Технология | Обоснование |
+| Слой | Технология | Откуда берём |
 |------|-----------|-------------|
-| Лендинг | Tilda | Быстро, не нужен разработчик, Telegram-кнопка вставляется как HTML-блок |
-| Приложение (фронт) | Jinja2 + HTMX | FastAPI сам отдаёт HTML, минимум JS, один сервис |
-| Backend | FastAPI (Python) | Async, знакомо по Nura, автодокументация |
-| База данных | PostgreSQL | Надёжно, транзакции, уже в Nura |
-| Аудио-хранилище | VPS (тот же сервер) | 15–20 треков = 1–2 ГБ, лишний сервис не нужен |
-| Аудио-раздача | FastAPI FileResponse | Проверка подписки перед отдачей файла |
-| Платежи | ЮKassa | СБП + карты Мир, вебхуки |
-| Auth | Telegram Login Widget | Решено в блоке 4 |
-| Сессия | httpOnly cookie, 90 дней | Не localStorage |
-| Деплой | Docker + VPS в РФ | Selectel / Timeweb / Reg.ru — 152-ФЗ |
-| V2: аудио при росте | Yandex Cloud Object Storage + CDN | Переезд за 1 день когда придёт нагрузка |
+| Фронтенд | Vanilla HTML/CSS/JS | Как в Nura — без фреймворков, без бандлера |
+| PWA | manifest.json + service worker | Паттерн из Nura |
+| Backend | FastAPI 0.115 + Python 3.11 | Как в Nura |
+| ORM | SQLAlchemy 2.0 async + asyncpg | Как в Nura |
+| Миграции | Alembic | Как в Nura |
+| Валидация | Pydantic 2 + pydantic-settings | Как в Nura |
+| Telegram bot | aiogram 3.13 | Как в Nura |
+| Bot FSM | Redis 7 (RedisStorage) | Как в Nura |
+| Rate limiting | slowapi | Как в Nura |
+| Auth | Telegram Login Widget → httpOnly cookie | Безопаснее чем в Nura |
+| Платежи | yookassa 3.1 + HMAC webhook | Как в Nura (уже отлажено) |
+| База данных | PostgreSQL 16 | Как в Nura |
+| Деплой | Docker Compose + Nginx | Как в Nura |
+| VPS | Российский хостинг (Selectel / Timeweb) | 152-ФЗ |
+| Аудио | /audio/ директория на VPS | FileResponse, не CDN |
+| Мониторинг | Sentry SDK | Как в Nura |
+
+**Не берём из Nura:** AI-слой, WeasyPrint, Celery, faster-whisper, видео-ассемблер, sqladmin (на старте не нужно).
 
 ---
 
-## Схема базы данных (минимальная)
+## Docker Compose (4 контейнера вместо 6 у Nura)
+
+```yaml
+services:
+  postgres:
+    image: postgres:16-alpine
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck: pg_isready
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes: [redis_data:/data]
+
+  api:
+    build: .
+    command: uvicorn dreif_app.api.main:app --host 0.0.0.0 --port 8000 --proxy-headers
+    ports: ["127.0.0.1:8000:8000"]   # наружу только через Nginx
+    volumes:
+      - ./audio:/app/audio:ro        # аудиофайлы (read-only)
+    depends_on: [postgres, redis]
+
+  bot:
+    build: .
+    command: python -m dreif_app.bot.main
+    depends_on: [postgres, redis]
+```
+
+Celery добавляется в V2 если понадобятся scheduled-рассылки.
+
+---
+
+## Nginx конфиг
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name dreif.ru;
+
+    # Лендинг и статика
+    root /var/www/dreif;
+    index index.html;
+
+    # PWA — SPA fallback
+    location /app/ {
+        try_files $uri $uri/ /app/index.html;
+        add_header Cache-Control "no-cache";
+    }
+
+    # manifest и service worker — без кэша
+    location ~* (manifest\.json|service-worker\.js)$ {
+        add_header Cache-Control "no-cache";
+    }
+
+    # API и аудио — в FastAPI
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /audio/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header X-Real-IP $remote_addr;
+        # Range requests для перемотки аудио
+        proxy_set_header Range $http_range;
+    }
+
+    # Let's Encrypt
+    ssl_certificate /etc/letsencrypt/live/dreif.ru/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/dreif.ru/privkey.pem;
+}
+
+server {
+    listen 80;
+    server_name dreif.ru;
+    return 301 https://$host$request_uri;
+}
+```
+
+---
+
+## Схема базы данных
 
 ```sql
 users
-  id                    UUID PRIMARY KEY
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid()
   telegram_id           BIGINT UNIQUE NOT NULL
-  subscription_status   ENUM('trial', 'active', 'expired', 'cancelled')
-  trial_started_at      TIMESTAMP
+  subscription_status   VARCHAR DEFAULT 'trial'   -- trial / active / expired
+  trial_started_at      TIMESTAMP DEFAULT now()
   subscription_until    TIMESTAMP
   web_session_id        UUID
   web_session_expires   TIMESTAMP
-  pd_consent_at         TIMESTAMP    -- согласие на обработку ПД
+  pd_consent_at         TIMESTAMP NOT NULL         -- согласие обязательно
   created_at            TIMESTAMP DEFAULT now()
 
-sessions_log           -- история прослушиваний для протокола
-  id                   UUID PRIMARY KEY
-  user_id              UUID REFERENCES users(id)
-  track_id             VARCHAR
-  category             ENUM('sleep', 'focus', 'stress', 'recovery')
-  state_before         JSONB        -- анкета до сессии (1-3 вопроса)
-  state_after          JSONB        -- оценка после
-  duration_sec         INTEGER
-  played_at            TIMESTAMP
+sessions_log
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid()
+  user_id               UUID REFERENCES users(id) ON DELETE CASCADE
+  track_id              VARCHAR NOT NULL
+  category              VARCHAR NOT NULL           -- sleep/focus/stress/recovery
+  state_before          JSONB                      -- анкета до
+  state_after           JSONB                      -- оценка после
+  duration_sec          INTEGER
+  played_at             TIMESTAMP DEFAULT now()
 
 payments
-  id                   UUID PRIMARY KEY
-  user_id              UUID REFERENCES users(id)
-  yukassa_payment_id   VARCHAR UNIQUE
-  amount               INTEGER      -- в копейках
-  period               ENUM('month', 'year')
-  status               ENUM('pending', 'succeeded', 'cancelled')
-  created_at           TIMESTAMP
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid()
+  user_id               UUID REFERENCES users(id) ON DELETE CASCADE
+  yukassa_payment_id    VARCHAR UNIQUE NOT NULL
+  amount_kopecks        INTEGER NOT NULL
+  period                VARCHAR NOT NULL           -- month / year
+  status                VARCHAR DEFAULT 'pending'  -- pending/succeeded/cancelled
+  created_at            TIMESTAMP DEFAULT now()
 ```
 
 ---
 
-## Защита аудио — раздача через FastAPI
+## Авторизация — Telegram Login Widget
 
-Аудиофайлы лежат в `/app/audio/` — вне публичной директории. Доступ только через endpoint с проверкой подписки:
+```
+1. Пользователь на лендинге нажимает «Начать дрейф»
+2. Telegram Login Widget открывает окно авторизации
+3. После подтверждения Telegram отправляет данные на:
+   POST /api/auth/telegram
+   { id, first_name, username, hash, auth_date }
+4. Backend верифицирует hash (HMAC-SHA256 с bot token)
+5. Создаёт или находит User по telegram_id
+6. Генерирует session_id (UUID), сохраняет в users
+7. Устанавливает httpOnly cookie: session_id, Max-Age=7776000 (90 дней)
+8. Редирект в /app/
+```
 
 ```python
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse
-import os
+import hmac, hashlib
 
-router = APIRouter()
+def verify_telegram_auth(data: dict, bot_token: str) -> bool:
+    check_hash = data.pop('hash')
+    data_string = '\n'.join(f'{k}={v}' for k, v in sorted(data.items()))
+    secret = hashlib.sha256(bot_token.encode()).digest()
+    calculated = hmac.new(secret, data_string.encode(), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(calculated, check_hash)
+```
 
+---
+
+## Защита аудио
+
+```python
 @router.get("/audio/{track_id}")
-async def stream_audio(
-    track_id: str,
-    user: User = Depends(get_current_user)
-):
+async def stream_audio(track_id: str, user: User = Depends(get_current_user)):
     if not has_access(user):
-        raise HTTPException(status_code=403, detail="Subscription required")
-
+        raise HTTPException(403)
     file_path = f"/app/audio/{track_id}.mp3"
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404)
-
-    # FileResponse поддерживает HTTP Range requests — перемотка работает
+        raise HTTPException(404)
     return FileResponse(file_path, media_type="audio/mpeg")
+    # FileResponse поддерживает Range requests → перемотка работает
 ```
-
-**HTTP Range requests** (нужны для перемотки в аудиоплеере) FastAPI поддерживает через `FileResponse` из коробки.
-
-**V2 при росте нагрузки:** файлы переезжают в Yandex Cloud Object Storage, endpoint генерирует подписанный URL вместо FileResponse. Изменение в одном месте, один день работы.
 
 ---
 
-## Логика ЮKassa — вебхук
-
-```
-Пользователь нажал «Начать подписку»
-    ↓
-Backend создаёт payment в ЮKassa API
-    → возвращает payment_url (страница оплаты ЮKassa)
-    ↓
-Пользователь оплачивает через СБП или карту Мир
-    ↓
-ЮKassa отправляет POST на: /api/webhook/yukassa
-    ↓
-Backend проверяет подпись вебхука (HMAC)
-    ↓
-Если payment.status == 'succeeded':
-    → обновляет users SET subscription_status='active',
-      subscription_until = now() + 30 days (или 365)
-    → Telegram-бот отправляет сообщение: «Подписка активирована»
-```
-
-**Важно:** всегда верифицировать подпись вебхука от ЮKassa — иначе кто угодно может послать фейковый «оплачено».
-
----
-
-## Triал-логика
+## ЮKassa вебхук
 
 ```python
-# При регистрации через Telegram
-user.subscription_status = 'trial'
-user.trial_started_at = now()
+@router.post("/webhook/yukassa")
+async def yukassa_webhook(request: Request):
+    body = await request.body()
+    # Верификация подписи — обязательно
+    signature = request.headers.get("X-YooMoney-Signature")
+    if not verify_yukassa_signature(body, signature, settings.yukassa_secret):
+        raise HTTPException(400)
 
-# Проверка доступа
+    event = await request.json()
+    if event["event"] == "payment.succeeded":
+        payment_id = event["object"]["id"]
+        await payment_service.activate_subscription(payment_id)
+```
+
+---
+
+## Триал-логика
+
+```python
+from datetime import datetime, timedelta, timezone
+
 def has_access(user: User) -> bool:
-    if user.subscription_status == 'active':
-        return user.subscription_until > now()
-    if user.subscription_status == 'trial':
-        return user.trial_started_at + timedelta(days=3) > now()
+    now = datetime.now(timezone.utc)
+    if user.subscription_status == 'active' and user.subscription_until:
+        return user.subscription_until > now
+    if user.subscription_status == 'trial' and user.trial_started_at:
+        return user.trial_started_at + timedelta(days=3) > now
     return False
 ```
 
 ---
 
-## PWA (Progressive Web App)
+## PWA
 
-Минимальная реализация — 1 день работы поверх готового сайта.
-
-**manifest.json:**
 ```json
+// manifest.json
 {
   "name": "Дрейф",
   "short_name": "Дрейф",
-  "start_url": "/app",
+  "start_url": "/app/",
   "display": "standalone",
   "background_color": "#0B1623",
   "theme_color": "#0B1623",
@@ -188,39 +308,34 @@ def has_access(user: User) -> bool:
 }
 ```
 
-**Service Worker — только для установки (не для кэша аудио):**
 ```javascript
-// sw.js — минимальный, только регистрация
+// service-worker.js — минимальный
 self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', () => self.clients.claim());
+self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 ```
-
-**Web Push (опционально на старте):**
-- Android: работает без установки на главный экран
-- iOS: только после «Добавить на главный экран» (с iOS 16.4)
-- На MVP можно пропустить — Telegram-бот закрывает эту задачу надёжнее
 
 ---
 
 ## Порядок разработки
 
-| # | Что | Зачем сначала |
-|---|-----|--------------|
-| 1 | FastAPI проект, БД, модели | Основа всего |
-| 2 | Telegram Login Widget + сессия в cookie | Без auth нет продукта |
-| 3 | Триал-логика + проверка доступа | Нужна до аудио |
-| 4 | Yandex Cloud Object Storage + подписанные URL | Защита аудио |
-| 5 | Аудио-плеер с протоколом (анкета → трек → оценка) | Сам продукт |
-| 6 | ЮKassa интеграция + вебхук | Монетизация |
-| 7 | Telegram-бот (напоминания, конверсия) | Удержание |
-| 8 | PWA manifest | Добавить на главный экран |
+| # | Что | Результат |
+|---|-----|----------|
+| 1 | Структура проекта, Docker Compose, Alembic, модели | Проект запускается локально |
+| 2 | Telegram Login Widget + httpOnly cookie | Можно войти |
+| 3 | Триал-логика + middleware проверки доступа | Закрытый контент |
+| 4 | Лендинг (frontend/index.html) | Есть куда вести трафик |
+| 5 | Аудиоплеер + протокол (анкета → трек → оценка) | Продукт работает |
+| 6 | ЮKassa + webhook | Можно платить |
+| 7 | Telegram-бот (напоминания, конверсия на день 3) | Удержание |
+| 8 | PWA manifest + service worker | Установка на экран |
+| 9 | Nginx + деплой на VPS | Продакшн |
 
 ---
 
 ## Что НЕ строить на MVP
 
-- Собственный стриминг-сервер (CDN справится)
-- Мобильное приложение (PWA достаточно)
-- Биометрическая интеграция (Oura/AW) — отложено
-- Административная панель — на старте хватит прямых SQL-запросов
-- Микросервисы — один монолит, деплоить проще
+- Celery / Beat — напоминания через aiogram scheduler или простой cron
+- Административная панель — прямые SQL-запросы на старте
+- Биометрическая интеграция (Oura/AW)
+- Микросервисы
+- CDN / Object Storage (добавить когда нагрузка превысит VPS)

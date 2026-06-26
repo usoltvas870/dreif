@@ -102,16 +102,19 @@
 - Email-последовательность на 3 дня триала (с вариантами для Техника и Сломавшегося)
 - Список запрещённых формулировок в контенте
 
-### Блок 5 — Техническая архитектура пейвола ✓ ЧЕРНОВИК ГОТОВ
+### Блок 5 — Техническая архитектура ✓ ЗАФИКСИРОВАНО v2.0
 Файл: `architecture.md`
 
-- Стек: FastAPI + PostgreSQL + Yandex Cloud Object Storage + CDN
-- No-code отклонён: не совместим с Telegram auth и ЮKassa
-- Защита аудио: подписанные URL с TTL 1 час (не публичные ссылки)
-- ЮKassa вебхук с верификацией HMAC подписи
-- Минимальная схема БД: users + sessions_log + payments
-- PWA: manifest.json + service worker — 1 день работы
-- Порядок разработки: 8 шагов от auth до бота
+Стек выровнен по Nura — всё в коде, никаких платных внешних сервисов:
+- Фронтенд: vanilla HTML/CSS/JS (как Nura), без фреймворков и бандлера
+- Backend: FastAPI 0.115 + SQLAlchemy 2.0 async + Pydantic 2
+- БД: PostgreSQL 16 + Alembic миграции
+- Redis: FSM для aiogram бота
+- Деплой: Docker Compose (4 контейнера: api, bot, postgres, redis) + Nginx
+- Auth: Telegram Login Widget + HMAC верификация + httpOnly cookie
+- Аудио: FileResponse через FastAPI, файлы на VPS (не CDN на MVP)
+- Платежи: yookassa 3.1 + HMAC webhook (паттерн из Nura)
+- Порядок разработки: 9 шагов от структуры до продакшн-деплоя
 
 ### Блок 6 — Биллинг
 ЮKassa, recurring через СБП (требует явной авторизации пользователем в банке — менее бесшовно чем карта), обработка отказов.
